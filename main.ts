@@ -125,14 +125,14 @@ function OpenMultiPlayerServerSelect () {
     ScreenNumber = 2
     playerX = 0
     StartAnimation(false)
-    radio.setGroup(33)
+    radio.setGroup(10)
     playerX = 0
     WaitingForAnswer = 0
     basic.showNumber(playerX)
     while (!(input.logoIsPressed())) {
         basic.pause(1)
     }
-    radio.setGroup(playerX * 26)
+    radio.setGroup(playerX)
     levelNumber = 1
     IsInMultiplayer = true
     soundExpression.giggle.play()
@@ -328,55 +328,75 @@ function RunMenu () {
     }
 }
 function StartLevel (spawnX: number, spawnY: number, levelPicture: Image, goalX: number, goalY: number, isMediumMap: boolean, isLargeMap: boolean, mapTopHalf: Image) {
-    if (isMediumMap) {
-        isOnLongMap = true
+    if (levelNumber >= LevelsUnlocked) {
+        if (isMediumMap) {
+            isOnLongMap = true
+        } else {
+            isOnLongMap = false
+        }
+        if (isLargeMap) {
+            isOnTallMap = true
+        } else {
+            isOnTallMap = false
+        }
+        ScreenNumber = -1
+        StartAnimation(false)
+        basic.pause(tickSpeed * 4)
+        if (isMediumMap || isLargeMap) {
+            playerX = spawnX + 2
+            playerY = spawnY
+        } else {
+            playerX = spawnX
+            playerY = spawnY
+        }
+        ScreenNumber = 0
+        levelImage = levelPicture
+        levelImageTop = mapTopHalf
+        if (isMediumMap || isLargeMap) {
+            levelOffsetX = -2
+            levelImage.showImage(levelOffsetX)
+        } else {
+            levelOffsetX = 0
+            levelImage.showImage(0)
+        }
+        isInGame = true
+        basic.pause(tickSpeed)
+        soundExpression.slide.play()
+        basic.pause(tickSpeed * 2)
+        if (isMediumMap) {
+            winPosX = goalX - 2
+        } else {
+            winPosX = goalX
+        }
+        winPosY = goalY
+        isPlayerDead = false
+        if (isMediumMap || isLargeMap) {
+            playerX = spawnX + 2
+            playerY = spawnY
+            led.plotBrightness(spawnX + 2, spawnY, 175)
+        } else {
+            playerX = spawnX
+            playerY = spawnY
+            led.plotBrightness(spawnX, spawnY, 175)
+        }
     } else {
+        soundExpression.twinkle.play()
+        ScreenNumber = -1
         isOnLongMap = false
-    }
-    if (isLargeMap) {
-        isOnTallMap = true
-    } else {
         isOnTallMap = false
-    }
-    ScreenNumber = -1
-    StartAnimation(false)
-    basic.pause(tickSpeed * 4)
-    if (isMediumMap || isLargeMap) {
-        playerX = spawnX + 2
-        playerY = spawnY
-    } else {
-        playerX = spawnX
-        playerY = spawnY
-    }
-    ScreenNumber = 0
-    levelImage = levelPicture
-    levelImageTop = mapTopHalf
-    if (isMediumMap || isLargeMap) {
-        levelOffsetX = -2
-        levelImage.showImage(levelOffsetX)
-    } else {
-        levelOffsetX = 0
-        levelImage.showImage(0)
-    }
-    isInGame = true
-    basic.pause(tickSpeed)
-    soundExpression.slide.play()
-    basic.pause(tickSpeed * 2)
-    if (isMediumMap) {
-        winPosX = goalX - 2
-    } else {
-        winPosX = goalX
-    }
-    winPosY = goalY
-    isPlayerDead = false
-    if (isMediumMap || isLargeMap) {
-        playerX = spawnX + 2
-        playerY = spawnY
-        led.plotBrightness(spawnX + 2, spawnY, 175)
-    } else {
-        playerX = spawnX
-        playerY = spawnY
-        led.plotBrightness(spawnX, spawnY, 175)
+        basic.showIcon(IconNames.SmallHeart)
+        basic.pause(tickSpeed)
+        basic.showIcon(IconNames.Heart)
+        basic.pause(tickSpeed)
+        basic.showIcon(IconNames.Cow)
+        basic.pause(tickSpeed)
+        basic.showIcon(IconNames.Happy)
+        basic.pause(tickSpeed)
+        if (IsInMultiplayer) {
+            IsInMultiplayer = false
+            radio.setGroup(33)
+        }
+        StartAnimation(true)
     }
 }
 function PlotUnplot_OtherPlayer (IsPlot: boolean) {
@@ -620,6 +640,9 @@ radio.onReceivedValue(function (name, value) {
     if (name == "MyLevel") {
         TheirLevel = value
     }
+    if (name == "selection") {
+        LevelsUnlocked = value
+    }
 })
 input.onLogoEvent(TouchButtonEvent.Pressed, function () {
     if (ScreenNumber >= 2) {
@@ -637,6 +660,7 @@ let Player2X = 0
 let winPosY = 0
 let winPosX = 0
 let isInGame = false
+let LevelsUnlocked = 0
 let WaitingForAnswer = 0
 let TheirLevel = 0
 let levelImage: Image = null
