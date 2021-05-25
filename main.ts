@@ -2,6 +2,10 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
     if (!(isPlayerDead)) {
         for (let index = 0; index < Math.abs(magnitude); index++) {
             basic.pause(tickSpeed)
+            if (IsInMultiplayer) {
+                radio.sendValue("MyLevel", levelNumber)
+                radio.sendString("Unplot")
+            }
             if (isXAxis) {
                 if (isOnLongMap) {
                     if (!(isOnTallMap)) {
@@ -19,7 +23,7 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
                             }
                         }
                     }
-                    i0 = true
+                    isOnTopMap = true
                     if (isOnTallMap) {
                         if (playerY < 0) {
                             levelImageTop.showImage(levelOffsetX)
@@ -29,7 +33,7 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
                     } else {
                         levelImage.showImage(levelOffsetX)
                     }
-                    i0 = false
+                    isOnTopMap = false
                     if (!(isOnTallMap)) {
                         led.plotBrightness(playerX, playerY, 175)
                     } else {
@@ -53,14 +57,14 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
                     } else {
                         led.unplot(playerX, playerY)
                     }
-                    i0 = true
+                    isOnTopMap = true
                     if (Math.constrain(magnitude, -1, 1) < 0) {
                         MapTopOrBottom(true)
                     } else {
                         MapTopOrBottom(false)
                     }
                     playerY += Math.constrain(magnitude, -1, 1)
-                    i0 = false
+                    isOnTopMap = false
                     if (!(isOnTallMap)) {
                         led.plotBrightness(playerX, playerY, 175)
                     } else {
@@ -88,10 +92,25 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
                     }
                 }
             }
+            if (IsInMultiplayer) {
+                if (isOnLongMap) {
+                    radio.sendValue("OtherX", levelOffsetX)
+                } else {
+                    radio.sendValue("OtherX", playerX)
+                }
+                radio.sendValue("OtherY", playerY)
+                if (TheirLevel == levelNumber) {
+                    radio.sendString("Plot")
+                    PlotUnplot_OtherPlayer(true)
+                }
+            }
             if (PlayerInWinPos() == true) {
                 soundExpression.happy.play()
                 levelNumber += 1
-                i0 = false
+                isOnTopMap = false
+                if (IsInMultiplayer) {
+                    radio.sendString("Unplot")
+                }
                 LevelStart()
             }
         }
@@ -101,6 +120,23 @@ function MovePlayer (isXAxis: boolean, magnitude: number) {
         playerX += Math.constrain(magnitude, -1, 1)
         led.plotBrightness(Math.constrain(playerX, 0, 4), playerY, 175)
     }
+}
+function OpenMultiPlayerServerSelect () {
+    ScreenNumber = 2
+    playerX = 0
+    StartAnimation(false)
+    radio.setGroup(33)
+    playerX = 0
+    WaitingForAnswer = 0
+    basic.showNumber(playerX)
+    while (!(input.logoIsPressed())) {
+        basic.pause(1)
+    }
+    radio.setGroup(playerX * 26)
+    levelNumber = 1
+    IsInMultiplayer = true
+    soundExpression.giggle.play()
+    LevelStart()
 }
 function LevelStart () {
     if (levelNumber == 1) {
@@ -266,6 +302,10 @@ function LevelStart () {
         basic.pause(tickSpeed)
         basic.showIcon(IconNames.Happy)
         basic.pause(tickSpeed)
+        if (IsInMultiplayer) {
+            IsInMultiplayer = false
+            radio.setGroup(33)
+        }
         StartAnimation(true)
     }
 }
@@ -273,15 +313,12 @@ function RunMenu () {
     if (ScreenNumber == 1) {
         levelImage = images.createImage(`
             # # # # #
-            # . # . #
+            # # # # #
             . . . . .
-            . # . # .
+            # # # # #
             # # # # #
             `)
         levelImage.showImage(0)
-        led.plotBrightness(0, 3, 50)
-        led.plotBrightness(2, 3, 50)
-        led.plotBrightness(4, 3, 50)
         led.plotBrightness(3, 1, 50)
         led.plotBrightness(1, 1, 50)
         playerX = 2
@@ -342,6 +379,31 @@ function StartLevel (spawnX: number, spawnY: number, levelPicture: Image, goalX:
         led.plotBrightness(spawnX, spawnY, 175)
     }
 }
+function PlotUnplot_OtherPlayer (IsPlot: boolean) {
+    if (levelNumber == TheirLevel) {
+        if (IsPlot) {
+            if (isOnLongMap) {
+                if (playerY < 0) {
+                    led.plotBrightness(Player2X - levelOffsetX + 2, Player2Y + 5, 150)
+                } else {
+                    led.plotBrightness(Player2X - levelOffsetX + 2, Player2Y, 150)
+                }
+            } else {
+                led.plotBrightness(Player2X, Player2Y, 150)
+            }
+        } else {
+            if (isOnLongMap) {
+                if (playerY < 0) {
+                    led.unplot(Player2X - levelOffsetX + 2, Player2Y + 5)
+                } else {
+                    led.unplot(Player2X - levelOffsetX + 2, Player2Y)
+                }
+            } else {
+                led.unplot(Player2X, Player2Y)
+            }
+        }
+    }
+}
 function MapTopOrBottom (willMoveUp: boolean) {
     if (willMoveUp) {
         if (playerY == 0) {
@@ -354,13 +416,13 @@ function MapTopOrBottom (willMoveUp: boolean) {
     }
 }
 function MenuSelect (selectNumber: number) {
-    if (selectNumber == 2) {
+    if (selectNumber == 1) {
         levelNumber = 1
         soundExpression.giggle.play()
         LevelStart()
     } else if (selectNumber == 3) {
         soundExpression.giggle.play()
-        OpenMultiPlayerSearch()
+        OpenMultiPlayerServerSelect()
     }
 }
 function Update () {
@@ -389,27 +451,18 @@ function Update () {
         }
     }
     if (isOnTallMap == false) {
-        if (i0) {
+        if (isOnTopMap) {
             led.plotBrightness(playerX, playerY, 175)
         }
     } else {
         if (playerY < 0) {
-            if (i0) {
+            if (isOnTopMap) {
                 led.plotBrightness(playerX, playerY, 175)
             }
         } else {
-            if (i0) {
+            if (isOnTopMap) {
                 led.plotBrightness(playerX, playerY + 5, 175)
             }
-        }
-    }
-}
-function CheckAnswerPicture () {
-    if (ScreenNumber == 2) {
-        if (playerX == 0) {
-            AnswerPicture = images.iconImage(IconNames.Yes)
-        } else if (playerX == 1) {
-            AnswerPicture = images.iconImage(IconNames.No)
         }
     }
 }
@@ -421,11 +474,9 @@ input.onButtonPressed(Button.A, function () {
             }
         }
     } else if (ScreenNumber >= 2) {
-        if (waitingForAnswer) {
-            playerX += -1
-            playerX = Math.constrain(playerX, 0, 1)
-            CheckAnswerPicture()
-        }
+        playerX += -1
+        playerX = Math.constrain(playerX, 0, 9)
+        basic.showNumber(playerX)
     }
 })
 function Jump () {
@@ -494,6 +545,9 @@ function PlayerGhostAnimation () {
     }
     LevelStart()
 }
+input.onButtonPressed(Button.AB, function () {
+    control.reset()
+})
 function PlayerInWinPos () {
     if (isPlayerDead) {
         return false
@@ -514,11 +568,13 @@ function PlayerInWinPos () {
     }
 }
 radio.onReceivedString(function (receivedString) {
-    if (receivedString == "FindingPlayers") {
-        waitingForSignal = false
-    }
-    if (receivedString == "yes") {
-        WaitingForOthersAnswer = false
+    if (levelNumber == TheirLevel) {
+        if (receivedString == "Plot" && levelNumber == TheirLevel) {
+            PlotUnplot_OtherPlayer(true)
+        }
+        if (receivedString == "Unplot" && levelNumber == TheirLevel) {
+            PlotUnplot_OtherPlayer(false)
+        }
     }
 })
 input.onButtonPressed(Button.B, function () {
@@ -529,11 +585,9 @@ input.onButtonPressed(Button.B, function () {
             }
         }
     } else if (ScreenNumber >= 2) {
-        if (waitingForAnswer) {
-            playerX += 1
-            playerX = Math.constrain(playerX, 0, 1)
-            CheckAnswerPicture()
-        }
+        playerX += 1
+        playerX = Math.constrain(playerX, 0, 9)
+        basic.showNumber(playerX)
     }
 })
 function StartAnimation (doGoToMenu: boolean) {
@@ -558,84 +612,50 @@ function StartAnimation (doGoToMenu: boolean) {
     }
 }
 radio.onReceivedValue(function (name, value) {
-    if (name == "yes") {
-        if (!(waitingForAnswer)) {
-            if (playerX == 0) {
-                radio.setGroup(value)
-                basic.clearScreen()
-            }
-        }
+    if (name == "OtherX") {
+        Player2X = value
+    } else if (name == "OtherY") {
+        Player2Y = value
+    }
+    if (name == "MyLevel") {
+        TheirLevel = value
     }
 })
 input.onLogoEvent(TouchButtonEvent.Pressed, function () {
     if (ScreenNumber >= 2) {
-        waitingForAnswer = false
+        WaitingForAnswer = 1
     } else if (ScreenNumber == 0) {
         Jump()
     } else if (ScreenNumber == 1) {
         MenuSelect(playerX)
     }
 })
-function OpenMultiPlayerSearch () {
-    ScreenNumber = 2
-    playerX = 0
-    StartAnimation(false)
-    radio.setGroup(1)
-    radio.sendString("FindingPlayers")
-    waitingForSignal = true
-    while (waitingForSignal) {
-        StartAnimation(false)
-    }
-    radio.sendString("FindingPlayers")
-    basic.showIcon(IconNames.StickFigure)
-    basic.pause(tickSpeed)
-    basic.showIcon(IconNames.Yes)
-    waitingForAnswer = true
-    playerX = 0
-    while (waitingForAnswer) {
-        AnswerPicture.showImage(0)
-        basic.pause(tickSpeed)
-    }
-    _1on1Channel = randint(1, 255)
-    if (playerX == 0) {
-        radio.sendValue("yes", _1on1Channel)
-        WaitingForOthersAnswer = true
-        basic.showIcon(IconNames.Asleep)
-        while (WaitingForOthersAnswer) {
-            basic.pause(tickSpeed)
-        }
-    } else {
-        radio.sendString("no")
-        StartAnimation(true)
-    }
-}
-let _1on1Channel = 0
-let WaitingForOthersAnswer = false
-let waitingForSignal = false
-let waitingForAnswer = false
 let walkLock = false
 let isJumpingUp = false
+let Player2Y = 0
+let Player2X = 0
 let winPosY = 0
 let winPosX = 0
 let isInGame = false
-let levelNumber = 0
+let WaitingForAnswer = 0
+let TheirLevel = 0
 let levelImage: Image = null
 let levelImageTop: Image = null
 let levelOffsetX = 0
 let playerY = 0
 let playerX = 0
+let levelNumber = 0
+let IsInMultiplayer = false
 let isPlayerDead = false
 let jumpPower = 0
 let ScreenNumber = 0
 let tickSpeed = 0
-let AnswerPicture: Image = null
 let isOnLongMap = false
 let isOnTallMap = false
-let i0 = false
-i0 = false
+let isOnTopMap = false
+isOnTopMap = false
 isOnTallMap = false
 isOnLongMap = false
-AnswerPicture = images.iconImage(IconNames.Yes)
 tickSpeed = 100
 ScreenNumber = 1
 jumpPower = 1
