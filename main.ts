@@ -566,7 +566,13 @@ function PlayerGhostAnimation () {
     LevelStart()
 }
 input.onButtonPressed(Button.AB, function () {
-    control.reset()
+    if (ScreenNumber >= 2) {
+        WaitingForAnswer = 1
+    } else if (ScreenNumber == 0) {
+        Jump()
+    } else if (ScreenNumber == 1) {
+        MenuSelect(playerX)
+    }
 })
 function PlayerInWinPos () {
     if (isPlayerDead) {
@@ -645,13 +651,7 @@ radio.onReceivedValue(function (name, value) {
     }
 })
 input.onLogoEvent(TouchButtonEvent.Pressed, function () {
-    if (ScreenNumber >= 2) {
-        WaitingForAnswer = 1
-    } else if (ScreenNumber == 0) {
-        Jump()
-    } else if (ScreenNumber == 1) {
-        MenuSelect(playerX)
-    }
+    control.reset()
 })
 let walkLock = false
 let isJumpingUp = false
